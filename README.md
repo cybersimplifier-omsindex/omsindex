@@ -1,4 +1,4 @@
-# omsindex
+# OMSindex
 🛡️  Open-source Maturity and Security Index (OMSIndex)
 
 OMSIndex is an open-source initiative designed to enhance trust in open-source software, with a particular focus on cybersecurity.
