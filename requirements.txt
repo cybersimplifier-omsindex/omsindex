@@ -1,0 +1,13 @@
+boto3
+Pillow
+requests
+jsonlib
+pandas
+numpy
+plotly
+nbformat
+matplotlib
+seaborn
+adjustText
+scikit-learn
+PlotPy
