@@ -28,7 +28,7 @@ folder=os.path.dirname(os.path.abspath("__file__"))
 
 # VulDB API key
 vuldbd_apikey = "YOUR_vuldbd_apikey"
-#this is a apikey from vuldba account (set to marta.jozwik@cybersimplifier, we only have 50 credits per day to use)
+#this is a apikey from vuldba account
 
 # GitHub token
 token = "YOUR_GitHub_token"
