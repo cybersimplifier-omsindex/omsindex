@@ -31,7 +31,7 @@ vuldbd_apikey = "YOUR_vuldbd_apikey"
 #this is a apikey from vuldba account (set to marta.jozwik@cybersimplifier, we only have 50 credits per day to use)
 
 # GitHub token
-token = "YOUR_gitbuh_token"
+token = "YOUR_GitHub_token"
 #this token is set to never expire
 
 ######################  functional code  #############################
