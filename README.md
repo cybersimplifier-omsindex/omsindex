@@ -39,4 +39,3 @@ OMSIndex consists of three main components:
 
 🧠 Currently in active development.
 
-   <img width="1189" height="790" alt="2025-08-27_index_plot_cluster_name" src="https://github.com/user-attachments/assets/12dfc326-c0bf-4187-8bb9-23ca788594c5" />
