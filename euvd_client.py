@@ -57,8 +57,8 @@ class EuvdClient:
 
         Uses the public EUVD `/search` endpoint with a selectable filter
         (e.g. `product`, `vendor`, or `text`). Additional filters can be passed
-        via `filters`. Paging uses `page` starting at 0 and `size` up to 100 per
-        request.
+        via `filters`. Paging uses a 1-based `page` parameter (default 1) and
+        `size` up to 100 per request.
         """
 
         url = f"{self.base_url}/search"
@@ -84,7 +84,7 @@ class EuvdClient:
             try:
                 error_body = exc.read().decode("utf-8", errors="replace").strip()
             except Exception:
-                error_body = ""
+                pass
             detail = f" {error_body}" if error_body else ""
             raise RuntimeError(f"EUVD request failed with status {exc.code}: {exc.reason}.{detail}") from exc
         except urllib.error.URLError as exc:  # type: ignore[attr-defined]
@@ -95,10 +95,12 @@ class EuvdClient:
             if not isinstance(items, list):
                 raise ValueError("Unexpected EUVD response format: 'items' is not a list")
             return items
-        data = payload.get("data", [])
-        if not isinstance(data, list):
-            raise ValueError("Unexpected EUVD response format: 'data' is not a list")
-        return data
+        if "data" in payload:
+            data = payload["data"]
+            if not isinstance(data, list):
+                raise ValueError("Unexpected EUVD response format: 'data' is not a list")
+            return data
+        raise ValueError("Unexpected EUVD response format: neither 'items' nor 'data' present")
 
 
 def _format_entry(entry: Dict[str, Any]) -> str:
@@ -122,7 +124,7 @@ def main() -> None:
         help="Value for the selected --filter (e.g. 'wazuh'); optional if other filters are set",
     )
     parser.add_argument("--limit", type=int, default=25, help="Number of results per page (default: 25)")
-    parser.add_argument("--page", type=int, default=0, help="Result page to fetch (default: 0)")
+    parser.add_argument("--page", type=int, default=1, help="Result page to fetch (default: 1)")
     parser.add_argument(
         "--filter",
         dest="filter_field",
