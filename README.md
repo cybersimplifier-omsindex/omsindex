@@ -2,7 +2,7 @@
 
 🛡️ **Open-source Maturity and Security Index** — a transparent, data-driven index of how mature and how secure open-source cybersecurity projects are.
 
-This repository contains the reference implementation of **OMSIndex v5**, the same calculation that powers the live ranking at **[cybersimplifier.com/index](https://cybersimplifier.com/index)**. Given the same raw data it reproduces the published scores, ranks and clusters exactly (this is covered by the tests).
+This repository contains the reference implementation of **OMSIndex v5**, the same calculation that powers the live ranking at **[cybersimplifier.com/index](https://cybersimplifier.com/index)**. Given the same raw data it reproduces the published scores, ranks and clusters exactly, and given the same score history it reproduces the published **score forecast** exactly (both are covered by the tests).
 
 ![2D Index — Contribution vs Security](docs/omsindex-2d.png)
 
@@ -69,6 +69,21 @@ Popularity weights follow `subscribers > forks > stars`: watching a repository i
 
 The exact thresholds and formulas are in [`omsindex_math.py`](omsindex_math.py), which has no third-party dependencies.
 
+### 4. The forecast
+
+The website also shows where each project's score may be in 30 and 90 days. The model is a **joint moving-block bootstrap** — it only replays how much the score has actually moved recently:
+
+1. Take the project's last 90 *observed* daily snapshots computed with index v5. Days that were gap-filled (`snapshotQuality` other than `observed`) are ignored. Until a project has 30 observed v5 snapshots, its pre-v5 history is used instead and the forecast is marked *provisional*.
+2. Turn them into daily changes of three values at once: the index, *Contribution & Usage* and *Security & Issues*.
+3. Simulate 1000 possible futures. Each starts at today's values and repeatedly appends a randomly chosen 7-day block of those historical changes (wrapping around the end of the history), keeping every value within 0–100. A block moves all three values together, so the relation between them is preserved, and no statistical distribution is assumed.
+4. For each future day, the **median** of the 1000 futures is the forecast and the 2.5% and 97.5% quantiles are the **95% uncertainty interval**. For the 2D chart, the model also reports the regions holding the central 95, 80, 50, 20 and 5% of simulated positions.
+
+The random numbers come from a generator seeded with the model version, project name, date and history length, so the same history always gives the same forecast — there is nothing to tune and nothing hidden.
+
+The forecast is an extrapolation of past variability, not a prediction of events: it does not know about upcoming releases or vulnerabilities, and a project whose score has not moved gets a flat forecast.
+
+The model is in [`omsindex_forecast.py`](omsindex_forecast.py), which has no third-party dependencies.
+
 ## Usage
 
 Requires Python 3.9+.
@@ -94,6 +109,22 @@ python security_index.py --snapshot https://www.cybersimplifier.com/index-data.j
 
 Options: `--output-dir DIR` (default `output`), `--no-plot` (skip the chart; matplotlib not needed), `--plot-file PNG` (save an extra copy of the chart).
 
+**Forecast** — no token and no third-party packages needed; downloads the daily score history published by the website (about 4 MB) and computes the forecast of every project:
+
+```bash
+python forecast_index.py
+```
+
+Add `--verify` to also download the forecast the website currently shows and confirm that yours is identical:
+
+```bash
+python forecast_index.py --verify
+```
+
+Options: `--history SOURCE` (a local or remote `history.csv` / `history.json`; default `https://www.cybersimplifier.com/exports/history.csv`), `--output-dir DIR` (default `output`), `--verify [EXPORTS]` (URL or directory with published forecasts to compare against; default `https://www.cybersimplifier.com/exports`).
+
+A forecast needs a history of daily snapshots, which cannot be collected after the fact. The website publishes its full history, including every raw metric, in `history.csv`; to forecast from your own runs, keep the daily `indexValue`, `indexPart1` and `indexPart2` of each project and pass them as `--history`.
+
 ### Output
 
 | File | Content |
@@ -101,6 +132,8 @@ Options: `--output-dir DIR` (default `output`), `--no-plot` (skip the chart; mat
 | `output/index-data.json` | Full result: raw data, component scores, index, 2D index, rank and cluster for every project. Same format as the website's data file. Also used as a fallback for the next run if an API call fails. |
 | `output/<date>_index.csv` | The ranking as a table |
 | `output/<date>_index_2d.png` | The *2D Index — Contribution vs Security* chart |
+| `output/forecast-summary.json` | 30-day forecast of every project: expected score, 95% interval and 2D regions. Same format as the website's `/exports/forecast-summary.json`. |
+| `output/forecasts/<slug>.json` | 90-day day-by-day forecast of one project, with the history it was built from. Same format as the website's `/exports/forecasts/<slug>.json`. |
 
 ### Use as a library
 
@@ -112,6 +145,19 @@ for project in ranked[:5]:
     print(project["rank"], project["name"], project["indexValue"], project["clusterKey"])
 ```
 
+```python
+from omsindex_forecast import build_forecast
+
+history = [  # one record per day
+    {"date": "2026-11-16", "indexValue": 46.2, "indexPart1": 69.4, "indexPart2": 30.4, "indexVersion": "5.0"},
+    {"date": "2026-11-17", "indexValue": 46.0, "indexPart1": 69.4, "indexPart2": 30.1, "indexVersion": "5.0"},
+    # ...
+]
+result = build_forecast(history, {"name": "Wazuh"})
+in_30_days = result["hoverEndpoint"]
+print(in_30_days["indexValue"], in_30_days["indexValueLower95"], in_30_days["indexValueUpper95"])
+```
+
 ## Repository layout
 
 | File | Purpose |
@@ -119,9 +165,11 @@ for project in ranked[:5]:
 | [`security_index.py`](security_index.py) | Command-line entry point: data collection and output |
 | [`omsindex_math.py`](omsindex_math.py) | Index v5 scoring, ranking and clustering |
 | [`plot_index.py`](plot_index.py) | 2D chart |
+| [`forecast_index.py`](forecast_index.py) | Command-line entry point for the forecast: history loading, output and verification |
+| [`omsindex_forecast.py`](omsindex_forecast.py) | Forecast model |
 | [`projects.py`](projects.py) | Tracked projects |
 | [`euvd_client.py`](euvd_client.py) | Standalone client for the ENISA EUVD vulnerability database (not used in the index calculation) |
-| [`tests/`](tests) | Tests, including a check against a snapshot published by the website |
+| [`tests/`](tests) | Tests, including checks against a snapshot and a forecast published by the website |
 
 ## Tests
 
